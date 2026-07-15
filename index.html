@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Video → GIF Converter</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0a0a0f;--s:rgba(255,255,255,.04);--s2:rgba(255,255,255,.08);--b:rgba(255,255,255,.1);--ac:#7c3aed;--ac2:#06b6d4;--tx:#f1f5f9;--mu:#64748b;--ok:#10b981;--r:16px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 20px;background-image:radial-gradient(ellipse at 20% 20%,rgba(124,58,237,.15),transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(6,182,212,.1),transparent 50%)}
+header{text-align:center;margin-bottom:28px}
+.logo{font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-bottom:8px}
+h1{font-size:clamp(26px,5vw,44px);font-weight:700;background:linear-gradient(135deg,#fff,#a78bfa 50%,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.sub{color:var(--mu);font-size:13px}
+.wrap{width:100%;max-width:860px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:700px){.wrap{grid-template-columns:1fr}}
+.left{display:flex;flex-direction:column;gap:14px}
+.right{display:flex;flex-direction:column;gap:14px}
+
+#dz{border:2px dashed rgba(124,58,237,.5);border-radius:var(--r);padding:36px 24px;text-align:center;cursor:pointer;background:var(--s);transition:all .3s}
+#dz:hover,#dz.over{border-color:var(--ac);background:rgba(124,58,237,.08);transform:translateY(-2px);box-shadow:0 16px 48px rgba(124,58,237,.2)}
+.ico{font-size:36px;display:block;margin-bottom:10px;animation:fl 3s ease-in-out infinite}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.dt{font-size:16px;font-weight:600;margin-bottom:4px}
+.ds{color:var(--mu);font-size:12px;margin-bottom:14px}
+.bbr{display:inline-block;padding:8px 20px;background:linear-gradient(135deg,var(--ac),#9333ea);border:none;border-radius:50px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.bbr:hover{transform:scale(1.04)}
+#fi{display:none}
+
+.card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:16px 18px}
+.ctitle{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:12px}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.si label{display:block;font-size:11px;color:var(--mu);margin-bottom:4px;font-weight:500;text-transform:uppercase;letter-spacing:.8px}
+.si select{width:100%;background:var(--s2);border:1px solid var(--b);border-radius:7px;color:var(--tx);font-family:inherit;font-size:12px;padding:8px 10px;appearance:none;cursor:pointer}
+.si select:focus{outline:none;border-color:var(--ac)}
+.si select option{background:#1e1e2e}
+.si.full{grid-column:span 2}
+
+.qhdr{display:none;align-items:center;justify-content:space-between;margin-bottom:8px}
+.qhdr.show{display:flex}
+.qlb{font-size:12px;font-weight:600;color:var(--mu)}
+.qct{padding:2px 10px;background:rgba(124,58,237,.2);border-radius:50px;font-size:11px;font-weight:700;color:#a78bfa;border:1px solid rgba(124,58,237,.3)}
+.bca{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);color:#f87171;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:11px;font-family:inherit;transition:all .2s}
+.bca:hover{background:rgba(239,68,68,.22)}
+
+#ql{display:flex;flex-direction:column;gap:8px}
+.qi{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:11px 13px;display:flex;align-items:center;gap:10px;animation:fadein .3s ease;transition:border-color .3s}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.qi.act{border-color:rgba(124,58,237,.5)}
+.qi.done{border-color:rgba(16,185,129,.3)}
+.qi.err{border-color:rgba(239,68,68,.3)}
+.qthumb{width:64px;height:42px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#111;border:1px solid var(--b)}
+.qinf{flex:1;min-width:0}
+.qn{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.qm{font-size:10px;color:var(--mu);margin-bottom:5px}
+.qpbg{background:var(--s2);border-radius:50px;height:4px;overflow:hidden}
+.qpf{height:100%;background:linear-gradient(90deg,var(--ac),var(--ac2));border-radius:50px;width:0%;transition:width .2s}
+.qst{flex-shrink:0;padding:3px 10px;border-radius:50px;font-size:10px;font-weight:600;border:1px solid var(--b);background:var(--s2);color:var(--mu);white-space:nowrap}
+.qst.act{background:rgba(124,58,237,.15);color:#a78bfa;border-color:rgba(124,58,237,.4)}
+.qst.done{background:rgba(16,185,129,.12);color:#34d399;border-color:rgba(16,185,129,.3)}
+.qst.err{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.3)}
+.qac{display:flex;gap:6px;flex-shrink:0;align-items:center}
+.brm{background:none;border:1px solid var(--b);border-radius:6px;color:var(--mu);width:26px;height:26px;cursor:pointer;font-size:12px;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.brm:hover{background:rgba(239,68,68,.15);color:#f87171;border-color:rgba(239,68,68,.3)}
+.bdl{padding:4px 12px;background:linear-gradient(135deg,var(--ok),#059669);border:none;border-radius:6px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;text-decoration:none;display:none;font-family:inherit;white-space:nowrap}
+.bdl:hover{opacity:.9}
+.bdl.show{display:inline-block}
+
+#cab{width:100%;padding:14px;background:linear-gradient(135deg,var(--ac),#9333ea 50%,#06b6d4);background-size:200% 200%;animation:gs 4s ease infinite;border:none;border-radius:var(--r);color:#fff;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;display:none;box-shadow:0 6px 24px rgba(124,58,237,.4);transition:all .3s}
+@keyframes gs{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}
+#cab:hover:not(:disabled){transform:translateY(-2px)}
+#cab:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+.smbar{background:var(--s);border:1px solid rgba(16,185,129,.25);border-radius:var(--r);padding:14px 18px;display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.smbar.show{display:flex}
+.smtx{font-size:13px;color:#34d399;font-weight:600}
+.bdla{padding:8px 20px;background:linear-gradient(135deg,var(--ok),#059669);border:none;border-radius:50px;color:#fff;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .2s}
+.bdla:hover{transform:scale(1.04)}
+
+/* Preview panel */
+.preview-panel{background:var(--s);border:1px solid var(--b);border-radius:var(--r);overflow:hidden;position:sticky;top:20px}
+.preview-header{padding:14px 16px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.preview-title{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--mu)}
+.preview-badge{padding:2px 8px;background:rgba(16,185,129,.15);border-radius:50px;font-size:10px;color:#34d399;border:1px solid rgba(16,185,129,.3);display:none}
+.preview-badge.show{display:inline-block}
+.preview-body{padding:16px;min-height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.preview-empty{text-align:center;color:var(--mu)}
+.preview-empty-ico{font-size:40px;margin-bottom:8px;opacity:.4}
+.preview-empty-txt{font-size:12px}
+#gifOut{max-width:100%;max-height:360px;border-radius:8px;display:none;border:1px solid var(--b)}
+.preview-info{font-size:11px;color:var(--mu);text-align:center;display:none}
+.preview-dl{padding:8px 20px;background:linear-gradient(135deg,var(--ok),#059669);border:none;border-radius:50px;color:#fff;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;text-decoration:none;display:none;transition:all .2s}
+.preview-dl:hover{transform:scale(1.04)}
+.preview-dl.show,.preview-info.show,#gifOut.show{display:block}
+.preview-dl.show{display:inline-block}
+
+.log{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:12px 16px;font-size:11px;color:var(--mu);display:none;max-height:100px;overflow-y:auto;font-family:monospace;line-height:1.6}
+.log.show{display:block}
+
+footer{margin-top:32px;color:var(--mu);font-size:11px;text-align:center}
+#vcap{position:fixed;left:-9999px;top:-9999px;width:640px;height:360px}
+canvas{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🎬 Batch Converter</div>
+  <h1>Video → GIF</h1>
+  <p class="sub">Kéo tối đa 10 video · mute · autoplay · autoloop</p>
+</header>
+
+<div class="wrap">
+  <!-- LEFT -->
+  <div class="left">
+    <div id="dz" onclick="document.getElementById('fi').click()">
+      <span class="ico">🎞️</span>
+      <div class="dt">Kéo & thả video vào đây</div>
+      <div class="ds">MP4, MOV, WebM, AVI... — kéo nhiều file cùng lúc</div>
+      <button class="bbr" onclick="event.stopPropagation();document.getElementById('fi').click()">Chọn file</button>
+      <input type="file" id="fi" accept="video/*" multiple>
+    </div>
+
+    <div class="card" id="sb" style="display:none">
+      <div class="ctitle">⚙️ Cài đặt</div>
+      <div class="sgrid">
+        <div class="si"><label>FPS</label>
+          <select id="fps"><option value="10">10 FPS</option><option value="15" selected>15 FPS</option><option value="20">20 FPS</option><option value="24">24 FPS</option></select>
+        </div>
+        <div class="si"><label>Chiều rộng</label>
+          <select id="pw"><option value="320">320px</option><option value="480" selected>480px</option><option value="640">640px</option><option value="720">720px</option><option value="0">Gốc</option></select>
+        </div>
+        <div class="si full"><label>Màu sắc</label>
+          <select id="nc"><option value="64">64 màu — nhỏ nhất</option><option value="128">128 màu</option><option value="256" selected>256 màu — tốt nhất</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="qhdr" id="qh">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="qlb">Video queue</span>
+        <span class="qct" id="qct">0</span>
+      </div>
+      <button class="bca" onclick="clearAll()">✕ Xóa tất cả</button>
+    </div>
+    <div id="ql"></div>
+    <div class="log" id="logbox"></div>
+    <button id="cab" onclick="convertAll()">✨ Convert tất cả</button>
+    <div class="smbar" id="smb">
+      <span class="smtx" id="smtx">✅ Xong!</span>
+      <button class="bdla" onclick="downloadAll()">⬇️ Tải tất cả (ZIP)</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Preview -->
+  <div class="right">
+    <div class="preview-panel">
+      <div class="preview-header">
+        <span class="preview-title">🖼️ Preview GIF</span>
+        <span class="preview-badge" id="pvBadge">LIVE</span>
+      </div>
+      <div class="preview-body" id="pvBody">
+        <div class="preview-empty" id="pvEmpty">
+          <div class="preview-empty-ico">🎬</div>
+          <div class="preview-empty-txt">GIF sẽ hiện ở đây sau khi convert xong</div>
+        </div>
+        <img id="gifOut" src="" alt="GIF preview">
+        <div class="preview-info" id="pvInfo"></div>
+        <a class="preview-dl" id="pvDl" href="#" download="">⬇️ Tải GIF này</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden video for capture - MUST be in DOM -->
+<video id="vcap" muted playsinline></video>
+<canvas id="cv"></canvas>
+<footer>Chạy 100% trên trình duyệt · Không upload · Không server</footer>
+
+<script src="gifenc.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script>
+const MAX=10; let queue=[],uid=0,running=false;
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');addFiles(e.dataTransfer.files)});
+document.getElementById('fi').addEventListener('change',e=>{addFiles(e.target.files);e.target.value=''});
+
+function log(msg){const b=document.getElementById('logbox');b.classList.add('show');b.innerHTML+=msg+'<br>';b.scrollTop=b.scrollHeight}
+function fmtB(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB'}
+
+function addFiles(files){
+  for(const f of files){
+    if(!f.type.startsWith('video/'))continue;
+    if(queue.length>=MAX){alert('Tối đa '+MAX+' video!');break}
+    const it={id:++uid,file:f,status:'queued',blob:null,url:null};
+    queue.push(it);renderItem(it);
+  }
+  updateUI();
+}
+
+function renderItem(it){
+  const d=document.createElement('div');
+  d.className='qi';d.id='qi-'+it.id;
+  const v=document.createElement('video');
+  v.className='qthumb';v.muted=true;v.playsInline=true;v.preload='metadata';
+  v.src=URL.createObjectURL(it.file);v.currentTime=0.5;
+  d.appendChild(v);
+  const info=document.createElement('div');info.className='qinf';
+  info.innerHTML=`<div class="qn">${it.file.name}</div><div class="qm">${fmtB(it.file.size)}</div><div class="qpbg"><div class="qpf" id="pf-${it.id}"></div></div>`;
+  d.appendChild(info);
+  const st=document.createElement('span');st.className='qst';st.id='qs-'+it.id;st.textContent='⏳ Chờ';d.appendChild(st);
+  const ac=document.createElement('div');ac.className='qac';
+  ac.innerHTML=`<a class="bdl" id="dl-${it.id}" href="#" download="">⬇️ GIF</a><button class="brm" onclick="removeItem(${it.id})">✕</button>`;
+  d.appendChild(ac);
+  document.getElementById('ql').appendChild(d);
+}
+
+function setItem(id,status,pct){
+  const el=document.getElementById('qi-'+id);if(!el)return;
+  el.className='qi'+(status==='done'?' done':status==='act'?' act':status==='err'?' err':'');
+  const st=document.getElementById('qs-'+id);
+  st.className='qst'+(status==='act'?' act':status==='done'?' done':status==='err'?' err':'');
+  if(status==='act')st.textContent='🔄 '+Math.round(pct||0)+'%';
+  else if(status==='done')st.textContent='✅ Xong';
+  else if(status==='err')st.textContent='❌ Lỗi';
+  else st.textContent='⏳ Chờ';
+  document.getElementById('pf-'+id).style.width=(Math.min(pct||0,100))+'%';
+}
+
+function removeItem(i){if(running)return;queue=queue.filter(x=>x.id!==i);const e=document.getElementById('qi-'+i);if(e)e.remove();updateUI()}
+function clearAll(){if(running)return;queue=[];document.getElementById('ql').innerHTML='';updateUI()}
+
+function updateUI(){
+  const n=queue.length,show=n>0;
+  document.getElementById('qct').textContent=n;
+  document.getElementById('qh').className='qhdr'+(show?' show':'');
+  document.getElementById('sb').style.display=show?'block':'none';
+  document.getElementById('cab').style.display=(show&&!running)?'block':'none';
+}
+
+function showPreview(it){
+  document.getElementById('pvEmpty').style.display='none';
+  const img=document.getElementById('gifOut');
+  img.src=it.url;img.classList.add('show');
+  const sz=fmtB(it.blob.size);
+  const info=document.getElementById('pvInfo');
+  info.textContent=it.file.name.replace(/\.[^.]+$/,'.gif')+' · '+sz;
+  info.classList.add('show');
+  const dl=document.getElementById('pvDl');
+  dl.href=it.url;
+  dl.download=it.file.name.replace(/\.[^.]+$/,'')+'.gif';
+  dl.classList.add('show');
+  document.getElementById('pvBadge').classList.add('show');
+}
+
+async function convertAll(){
+  if(running||!queue.length)return;
+  running=true;
+  document.getElementById('cab').disabled=true;
+  document.getElementById('smb').classList.remove('show');
+  document.getElementById('logbox').innerHTML='';
+  const fps=+document.getElementById('fps').value;
+  const pw=+document.getElementById('pw').value;
+  const nc=+document.getElementById('nc').value;
+  let done=0;
+  for(const it of queue){
+    if(it.status==='done'){done++;continue}
+    try{
+      setItem(it.id,'act',2);
+      const blob=await encodeGIF(it,fps,pw,nc);
+      it.blob=blob;it.status='done';done++;
+      it.url=URL.createObjectURL(blob);
+      const bn=it.file.name.replace(/\.[^.]+$/,'')+'.gif';
+      const dl=document.getElementById('dl-'+it.id);
+      dl.href=it.url;dl.download=bn;dl.classList.add('show');
+      setItem(it.id,'done',100);
+      log('✅ '+it.file.name+' → '+fmtB(blob.size));
+      showPreview(it); // auto preview mới nhất
+    }catch(e){
+      it.status='err';setItem(it.id,'err',0);
+      log('❌ '+it.file.name+' — '+e.message);
+      console.error(e);
+    }
+  }
+  running=false;
+  document.getElementById('cab').disabled=false;
+  document.getElementById('smtx').textContent='✅ Xong '+done+'/'+queue.length+' video!';
+  document.getElementById('smb').classList.add('show');
+  const hasErr=queue.some(i=>i.status==='err');
+  document.getElementById('cab').style.display=hasErr?'block':'none';
+}
+
+async function encodeGIF(it,fps,pw,nc){
+  const {GIFEncoder,quantize,applyPalette,prequantize}=gifenc;
+  // Use the persistent hidden video element that's already in the DOM
+  const vid=document.getElementById('vcap');
+  const src=URL.createObjectURL(it.file);
+  vid.src=src;
+  await new Promise((res,rej)=>{vid.onloadedmetadata=res;vid.onerror=rej;vid.load()});
+
+  const dur=vid.duration;
+  const ow=vid.videoWidth,oh=vid.videoHeight;
+  const w=pw===0?ow:Math.min(pw,ow);
+  const h=Math.round(w/ow*oh);
+  const cv=document.getElementById('cv');
+  cv.width=w;cv.height=h;
+  const ctx=cv.getContext('2d',{willReadFrequently:true});
+  const delay=Math.round(1000/fps);
+  const enc=GIFEncoder();
+
+  // Build palette from 10% into video (avoid black fade-in at frame 0)
+  setItem(it.id,'act',3);
+  vid.currentTime=Math.max(0.1, dur*0.1);
+  await new Promise(r=>{vid.onseeked=r});
+  ctx.drawImage(vid,0,0,w,h);
+  const fp=new Uint8ClampedArray(ctx.getImageData(0,0,w,h).data);
+  prequantize(fp);
+  const palette=quantize(fp,nc);
+  setItem(it.id,'act',8);
+
+  let nextCapture=0,isFirst=true;
+
+  if('requestVideoFrameCallback' in HTMLVideoElement.prototype){
+    await new Promise((resolve,reject)=>{
+      let settled=false;
+      function finish(){if(settled)return;settled=true;vid.pause();URL.revokeObjectURL(src);resolve()}
+
+      function encodeFrame(){
+        ctx.drawImage(vid,0,0,w,h);
+        const px=ctx.getImageData(0,0,w,h).data;
+        prequantize(px);
+        const idx=applyPalette(px,palette);
+        enc.writeFrame(idx,w,h,{palette:isFirst?palette:undefined,delay,repeat:0});
+        isFirst=false;
+      }
+
+      function onFrame(now,meta){
+        const t=meta.mediaTime;
+        while(nextCapture<=t+0.005 && nextCapture<dur-0.01){
+          encodeFrame();
+          nextCapture+=1/fps;
+          setItem(it.id,'act',8+(nextCapture/dur)*90);
+        }
+        if(nextCapture>=dur-0.01) finish();
+        else vid.requestVideoFrameCallback(onFrame);
+      }
+
+      vid.onended=()=>{
+        // flush last frames
+        while(nextCapture<dur-1/fps/2){
+          encodeFrame();nextCapture+=1/fps;
+        }
+        finish();
+      };
+      vid.onerror=e=>{URL.revokeObjectURL(src);reject(e)};
+      vid.playbackRate=2;
+      vid.currentTime=0;
+      vid.onseeked=()=>{vid.requestVideoFrameCallback(onFrame);vid.play().catch(reject)};
+    });
+  } else {
+    // Fallback: seek per frame
+    const totalF=Math.max(1,Math.floor(dur*fps));
+    for(let i=0;i<totalF;i++){
+      vid.currentTime=i/fps;
+      await new Promise(r=>{vid.onseeked=r});
+      ctx.drawImage(vid,0,0,w,h);
+      const px=ctx.getImageData(0,0,w,h).data;
+      prequantize(px);
+      const idx=applyPalette(px,palette);
+      enc.writeFrame(idx,w,h,{palette:isFirst?palette:undefined,delay,repeat:0});
+      isFirst=false;
+      setItem(it.id,'act',8+(i/totalF)*90);
+    }
+    URL.revokeObjectURL(src);
+  }
+
+  enc.finish();
+  return new Blob([enc.bytes()],{type:'image/gif'});
+}
+
+async function downloadAll(){
+  const done=queue.filter(i=>i.status==='done'&&i.blob);
+  if(!done.length)return;
+  const btn=document.querySelector('.bdla');
+  btn.textContent='⏳ Nén ZIP...';btn.disabled=true;
+  const zip=new JSZip();
+  for(const it of done) zip.file(it.file.name.replace(/\.[^.]+$/,'')+'.gif',it.blob);
+  const zb=await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(zb);a.download='gifs.zip';a.click();
+  btn.textContent='⬇️ Tải tất cả (ZIP)';btn.disabled=false;
+}
+</script>
+</body>
+</html>
