@@ -319,20 +319,19 @@ async function encodeGIF(it,fps,pw,nc){
   const delay=Math.round(1000/fps);
   const enc=GIFEncoder();
 
-  // Seek to time and capture frame — createImageBitmap is more reliable in Safari
+  // Seek to time and capture frame
+  // rVFC fires when frame is composited and ready — correct API for paused-seek capture
+  // Works in Safari 15.4+, Chrome 83+, Edge 83+. Falls back to setTimeout for Firefox.
   async function seekAndDraw(t){
-    vid.currentTime=t;
-    await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
-    // Give Safari extra time to decode the frame after seeked fires
-    await new Promise(r=>setTimeout(r,80));
-    // createImageBitmap reads from decoded video buffer, works even off-screen
-    if(typeof createImageBitmap!=='undefined'){
-      try{
-        const bmp=await createImageBitmap(vid);
-        ctx.drawImage(bmp,0,0,w,h);
-        bmp.close();
-        return ctx.getImageData(0,0,w,h).data;
-      }catch(e){/*fallthrough*/}
+    if('requestVideoFrameCallback' in vid){
+      // Register BEFORE seek so we don't miss the callback
+      const ready=new Promise(r=>vid.requestVideoFrameCallback(r));
+      vid.currentTime=t;
+      await ready;
+    } else {
+      vid.currentTime=t;
+      await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
+      await new Promise(r=>setTimeout(r,100));
     }
     ctx.drawImage(vid,0,0,w,h);
     return ctx.getImageData(0,0,w,h).data;
