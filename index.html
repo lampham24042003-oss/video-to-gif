@@ -319,15 +319,12 @@ async function encodeGIF(it,fps,pw,nc){
   const delay=Math.round(1000/fps);
   const enc=GIFEncoder();
 
-  // Seek to time and capture frame
-  // rVFC fires when frame is composited and ready — correct API for paused-seek capture
-  // Works in Safari 15.4+, Chrome 83+, Edge 83+. Falls back to setTimeout for Firefox.
+  // ── 1. Seek to 10% to build palette (1 seek only) ──
+  setItem(it.id,'act',3);
   async function seekAndDraw(t){
     if('requestVideoFrameCallback' in vid){
-      // Register BEFORE seek so we don't miss the callback
       const ready=new Promise(r=>vid.requestVideoFrameCallback(r));
-      vid.currentTime=t;
-      await ready;
+      vid.currentTime=t; await ready;
     } else {
       vid.currentTime=t;
       await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
@@ -336,31 +333,68 @@ async function encodeGIF(it,fps,pw,nc){
     ctx.drawImage(vid,0,0,w,h);
     return ctx.getImageData(0,0,w,h).data;
   }
-
-  // Build palette from 10% (avoid black fade-in)
-  setItem(it.id,'act',3);
   const palPx=new Uint8ClampedArray(await seekAndDraw(Math.max(0.1,dur*0.1)));
   prequantize(palPx);
   const palette=quantize(palPx,nc);
   setItem(it.id,'act',8);
 
-  // Encode frame-by-frame (seek approach — works on ALL browsers including Safari)
-  const totalF=Math.max(1,Math.floor(dur*fps));
-  let isFirst=true;
-  for(let i=0;i<totalF;i++){
-    const px=await seekAndDraw(i/fps);
+  // ── 2. Play at 4x speed + rVFC for fast frame-accurate capture ──
+  let nextCapture=0,isFirst=true;
+
+  function encodeFrame(){
+    ctx.drawImage(vid,0,0,w,h);
+    const px=ctx.getImageData(0,0,w,h).data;
     prequantize(px);
-    const idx=applyPalette(px,palette);
-    enc.writeFrame(idx,w,h,{palette:isFirst?palette:undefined,delay,repeat:0});
+    enc.writeFrame(applyPalette(px,palette),w,h,{palette:isFirst?palette:undefined,delay,repeat:0});
     isFirst=false;
-    // Use (i+1) so last frame hits ~98%, then convertAll sets 'done' at 100%
-    setItem(it.id,'act',Math.round(8+((i+1)/totalF)*90));
+    nextCapture+=1/fps;
+    setItem(it.id,'act',Math.round(8+(Math.min(nextCapture,dur)/dur)*90));
+  }
+
+  if('requestVideoFrameCallback' in vid){
+    await new Promise((resolve,reject)=>{
+      let settled=false;
+      function finish(){if(settled)return;settled=true;vid.pause();resolve();}
+
+      function onFrame(now,meta){
+        const t=meta.mediaTime;
+        while(nextCapture<=t+0.005 && nextCapture<dur) encodeFrame();
+        if(nextCapture>=dur) finish();
+        else vid.requestVideoFrameCallback(onFrame);
+      }
+
+      vid.onended=()=>{
+        while(nextCapture<dur-0.001) encodeFrame();
+        finish();
+      };
+      vid.onerror=reject;
+      vid.playbackRate=4;
+
+      // Seek to 0, wait for frame ready, then start playing + capturing
+      const ready=new Promise(r=>vid.requestVideoFrameCallback(r));
+      vid.currentTime=0;
+      ready.then(()=>{
+        vid.requestVideoFrameCallback(onFrame);
+        vid.play().catch(reject);
+      });
+    });
+  } else {
+    // Firefox: seek per frame (no rVFC)
+    const totalF=Math.max(1,Math.floor(dur*fps));
+    for(let i=0;i<totalF;i++){
+      vid.currentTime=i/fps;
+      await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
+      await new Promise(r=>setTimeout(r,80));
+      encodeFrame();
+    }
   }
 
   URL.revokeObjectURL(src);
   enc.finish();
   return new Blob([enc.bytes()],{type:'image/gif'});
 }
+
+
 
 async function downloadAll(){
   const done=queue.filter(i=>i.status==='done'&&i.blob);
