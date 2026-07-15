@@ -47,7 +47,8 @@ h1{font-size:clamp(26px,5vw,44px);font-weight:700;background:linear-gradient(135
 .qi{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:11px 13px;display:flex;align-items:center;gap:10px;animation:fadein .3s ease;transition:border-color .3s}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .qi.act{border-color:rgba(124,58,237,.5)}
-.qi.done{border-color:rgba(16,185,129,.3)}
+.qi.done{border-color:rgba(16,185,129,.3);cursor:pointer}
+.qi.done:hover{background:rgba(16,185,129,.05);border-color:rgba(16,185,129,.5)}
 .qi.err{border-color:rgba(239,68,68,.3)}
 .qthumb{width:64px;height:42px;object-fit:cover;border-radius:6px;flex-shrink:0;background:#111;border:1px solid var(--b)}
 .qinf{flex:1;min-width:0}
@@ -215,6 +216,10 @@ function renderItem(it){
   const ac=document.createElement('div');ac.className='qac';
   ac.innerHTML=`<a class="bdl" id="dl-${it.id}" href="#" download="">⬇️ GIF</a><button class="brm" onclick="removeItem(${it.id})">✕</button>`;
   d.appendChild(ac);
+  d.addEventListener('click',()=>{
+    const item=queue.find(x=>x.id===it.id);
+    if(item&&item.status==='done') showPreview(item);
+  });
   document.getElementById('ql').appendChild(d);
 }
 
@@ -339,7 +344,8 @@ async function encodeGIF(it,fps,pw,nc){
     const idx=applyPalette(px,palette);
     enc.writeFrame(idx,w,h,{palette:isFirst?palette:undefined,delay,repeat:0});
     isFirst=false;
-    setItem(it.id,'act',8+(i/totalF)*90);
+    // Use (i+1) so last frame hits ~98%, then convertAll sets 'done' at 100%
+    setItem(it.id,'act',Math.round(8+((i+1)/totalF)*90));
   }
 
   URL.revokeObjectURL(src);
