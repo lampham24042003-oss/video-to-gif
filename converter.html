@@ -113,11 +113,11 @@ canvas{display:none}
 <div class="wrap">
   <!-- LEFT -->
   <div class="left">
-    <div id="dz" onclick="document.getElementById('fi').click()">
+    <label id="dz" for="fi">
       <span class="ico">🎞️</span>
       <div class="dt">Kéo & thả video vào đây</div>
       <div class="ds">MP4, MOV, WebM, AVI... — kéo nhiều file cùng lúc</div>
-      <button class="bbr" onclick="event.stopPropagation();document.getElementById('fi').click()">Chọn file</button>
+      <span class="bbr">Chọn file</span>
       <input type="file" id="fi" accept="video/*" multiple>
     </div>
 
@@ -337,11 +337,10 @@ async function encodeGIF(it,fps,pw,nc){
   const palette=quantize(palPx,nc);
   setItem(it.id,'act',8);
 
-  // Step 2: Web Worker encodes on separate CPU thread (true parallelism)
-  const gifencUrl=new URL('gifenc.js',location.href).href;
-  const wkSrc=`
-const window=self;
-importScripts('${gifencUrl}');
+  // Step 2: Web Worker encodes on separate CPU thread
+  // Fetch gifenc.js and embed directly in worker blob — avoids importScripts CSP issues on Safari
+  const gifencText=await fetch(new URL('gifenc.js',location.href).href).then(r=>r.text());
+  const wkSrc=gifencText.replace('(window)','(self)')+`
 const {GIFEncoder,applyPalette,prequantize}=gifenc;
 let enc,pal,first=true,done=0,total=0;
 onmessage=function(e){
