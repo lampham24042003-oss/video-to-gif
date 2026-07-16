@@ -113,11 +113,11 @@ canvas{display:none}
 <div class="wrap">
   <!-- LEFT -->
   <div class="left">
-    <label id="dz" for="fi">
+    <div id="dz">
       <span class="ico">🎞️</span>
       <div class="dt">Kéo & thả video vào đây</div>
       <div class="ds">MP4, MOV, WebM, AVI... — kéo nhiều file cùng lúc</div>
-      <span class="bbr">Chọn file</span>
+      <label for="fi" class="bbr" onclick="event.stopPropagation()">Chọn file</label>
       <input type="file" id="fi" accept="video/*" multiple>
     </div>
 
@@ -182,6 +182,8 @@ canvas{display:none}
 <script>
 const MAX=10; let queue=[],uid=0,running=false;
 const dz=document.getElementById('dz');
+// Click anywhere on drop zone → open file picker
+dz.addEventListener('click',e=>{if(e.target.closest('label[for="fi"]'))return;document.getElementById('fi').click();});
 // dragenter required by Safari to allow drop
 dz.addEventListener('dragenter',e=>{e.preventDefault();e.stopPropagation();dz.classList.add('over')});
 dz.addEventListener('dragover',e=>{e.preventDefault();e.stopPropagation();dz.classList.add('over')});
