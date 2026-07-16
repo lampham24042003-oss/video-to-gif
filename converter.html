@@ -299,7 +299,7 @@ async function convertAll(){
 }
 
 async function encodeGIF(it,fps,pw,nc){
-  const {GIFEncoder,quantize,applyPalette,prequantize}=gifenc;
+  const {quantize,prequantize}=gifenc;
   const vid=document.getElementById('vcap');
   const src=URL.createObjectURL(it.file);
   vid.src=src;
@@ -317,15 +317,14 @@ async function encodeGIF(it,fps,pw,nc){
   cv.width=w;cv.height=h;
   const ctx=cv.getContext('2d',{willReadFrequently:true});
   const delay=Math.round(1000/fps);
-  const enc=GIFEncoder();
 
-  // ── 1. Seek to 10% to build palette (1 seek only) ──
+  // Step 1: 1 seek to build palette
   setItem(it.id,'act',3);
-  async function seekAndDraw(t){
+  async function seekToDraw(t){
     if('requestVideoFrameCallback' in vid){
-      const ready=new Promise(r=>vid.requestVideoFrameCallback(r));
-      vid.currentTime=t; await ready;
-    } else {
+      const p=new Promise(r=>vid.requestVideoFrameCallback(r));
+      vid.currentTime=t; await p;
+    }else{
       vid.currentTime=t;
       await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
       await new Promise(r=>setTimeout(r,100));
@@ -333,65 +332,92 @@ async function encodeGIF(it,fps,pw,nc){
     ctx.drawImage(vid,0,0,w,h);
     return ctx.getImageData(0,0,w,h).data;
   }
-  const palPx=new Uint8ClampedArray(await seekAndDraw(Math.max(0.1,dur*0.1)));
-  prequantize(palPx);
+  const palPx=new Uint8ClampedArray(await seekToDraw(Math.max(0.1,dur*0.1)));
+  prequantize(palPx,{roundRGB:16});
   const palette=quantize(palPx,nc);
   setItem(it.id,'act',8);
 
-  // ── 2. Play at 4x speed + rVFC for fast frame-accurate capture ──
-  let nextCapture=0,isFirst=true;
-
-  function encodeFrame(){
-    ctx.drawImage(vid,0,0,w,h);
-    const px=ctx.getImageData(0,0,w,h).data;
-    prequantize(px);
-    enc.writeFrame(applyPalette(px,palette),w,h,{palette:isFirst?palette:undefined,delay,repeat:0});
-    isFirst=false;
-    nextCapture+=1/fps;
-    setItem(it.id,'act',Math.round(8+(Math.min(nextCapture,dur)/dur)*90));
+  // Step 2: Web Worker encodes on separate CPU thread (true parallelism)
+  const gifencUrl=new URL('gifenc.js',location.href).href;
+  const wkSrc=`
+const window=self;
+importScripts('${gifencUrl}');
+const {GIFEncoder,applyPalette,prequantize}=gifenc;
+let enc,pal,first=true,done=0,total=0;
+onmessage=function(e){
+  const d=e.data;
+  if(d.t==='init'){enc=GIFEncoder();pal=d.pal;total=d.total;}
+  else if(d.t==='frame'){
+    const px=new Uint8ClampedArray(d.buf);
+    prequantize(px,{roundRGB:16});
+    enc.writeFrame(applyPalette(px,pal),d.w,d.h,{palette:first?pal:undefined,delay:d.delay,repeat:0});
+    first=false;done++;
+    postMessage({t:'p',n:done,total:total});
+  }else if(d.t==='end'){
+    enc.finish();const b=enc.bytes();
+    postMessage({t:'gif',b},[b.buffer]);
   }
+};`;
+  const wk=new Worker(URL.createObjectURL(new Blob([wkSrc],{type:'application/javascript'})));
+  const totalF=Math.max(1,Math.floor(dur*fps));
+  wk.postMessage({t:'init',pal:palette,total:totalF});
 
+  // Step 3: Play at 4x + rVFC, transfer frames to worker (zero-copy ArrayBuffer)
+  let nextCapture=0;
   if('requestVideoFrameCallback' in vid){
-    await new Promise((resolve,reject)=>{
-      let settled=false;
-      function finish(){if(settled)return;settled=true;vid.pause();resolve();}
-
+    await new Promise((res,rej)=>{
+      let fin=false;
+      function finish(){if(fin)return;fin=true;vid.pause();wk.postMessage({t:'end'});res();}
       function onFrame(now,meta){
         const t=meta.mediaTime;
-        while(nextCapture<=t+0.005 && nextCapture<dur) encodeFrame();
-        if(nextCapture>=dur) finish();
+        while(nextCapture<=t+0.005&&nextCapture<dur){
+          ctx.drawImage(vid,0,0,w,h);
+          const imgd=ctx.getImageData(0,0,w,h);
+          wk.postMessage({t:'frame',buf:imgd.data.buffer,w,h,delay},[imgd.data.buffer]);
+          nextCapture+=1/fps;
+        }
+        if(nextCapture>=dur)finish();
         else vid.requestVideoFrameCallback(onFrame);
       }
-
       vid.onended=()=>{
-        while(nextCapture<dur-0.001) encodeFrame();
+        ctx.drawImage(vid,0,0,w,h);
+        const imgd=ctx.getImageData(0,0,w,h);
+        wk.postMessage({t:'frame',buf:imgd.data.buffer,w,h,delay},[imgd.data.buffer]);
         finish();
       };
-      vid.onerror=reject;
+      vid.onerror=rej;
       vid.playbackRate=4;
-
-      // Seek to 0, wait for frame ready, then start playing + capturing
-      const ready=new Promise(r=>vid.requestVideoFrameCallback(r));
+      const p=new Promise(r=>vid.requestVideoFrameCallback(r));
       vid.currentTime=0;
-      ready.then(()=>{
-        vid.requestVideoFrameCallback(onFrame);
-        vid.play().catch(reject);
-      });
+      p.then(()=>{vid.requestVideoFrameCallback(onFrame);vid.play().catch(rej);});
     });
-  } else {
-    // Firefox: seek per frame (no rVFC)
-    const totalF=Math.max(1,Math.floor(dur*fps));
+  }else{
+    // Firefox: no rVFC, seek per frame
     for(let i=0;i<totalF;i++){
       vid.currentTime=i/fps;
       await new Promise(r=>vid.addEventListener('seeked',r,{once:true}));
       await new Promise(r=>setTimeout(r,80));
-      encodeFrame();
+      ctx.drawImage(vid,0,0,w,h);
+      const imgd=ctx.getImageData(0,0,w,h);
+      wk.postMessage({t:'frame',buf:imgd.data.buffer,w,h,delay},[imgd.data.buffer]);
+      setItem(it.id,'act',Math.round(8+((i+1)/totalF)*45));
     }
+    wk.postMessage({t:'end'});
   }
 
-  URL.revokeObjectURL(src);
-  enc.finish();
-  return new Blob([enc.bytes()],{type:'image/gif'});
+  // Step 4: Worker finishes encoding and returns GIF bytes
+  return new Promise((res,rej)=>{
+    wk.onmessage=e=>{
+      if(e.data.t==='p') setItem(it.id,'act',Math.round(8+(e.data.n/e.data.total)*90));
+      else if(e.data.t==='gif'){
+        wk.terminate();
+        URL.revokeObjectURL(src);
+        res(new Blob([e.data.b],{type:'image/gif'}));
+      }
+    };
+    wk.onerror=e=>rej(new Error(e.message));
+  });
+}
 }
 
 
