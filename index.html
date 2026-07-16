@@ -336,8 +336,7 @@ async function encodeGIF(it,fps,pw,nc){
     return ctx.getImageData(0,0,w,h).data;
   }
   const palPx=new Uint8ClampedArray(await seekToDraw(Math.max(0.1,dur*0.1)));
-  prequantize(palPx);
-  const palette=quantize(palPx,nc);
+  const palette=quantize(palPx,nc,{format:'rgb444'});
   setItem(it.id,'act',8);
 
   // Step 2: Web Worker encodes on separate CPU thread
@@ -351,8 +350,7 @@ onmessage=function(e){
   if(d.t==='init'){enc=GIFEncoder();pal=d.pal;total=d.total;}
   else if(d.t==='frame'){
     const px=new Uint8ClampedArray(d.buf);
-    prequantize(px);
-    enc.writeFrame(applyPalette(px,pal),d.w,d.h,{palette:first?pal:undefined,delay:d.delay,repeat:0});
+    enc.writeFrame(applyPalette(px,pal,'rgb444'),d.w,d.h,{palette:first?pal:undefined,delay:d.delay,repeat:0});
     first=false;done++;
     postMessage({t:'p',n:done,total:total});
   }else if(d.t==='end'){
