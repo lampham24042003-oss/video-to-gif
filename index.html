@@ -420,9 +420,6 @@ onmessage=function(e){
     wk.onerror=e=>rej(new Error(e.message));
   });
 }
-}
-
-
 
 async function downloadAll(){
   const done=queue.filter(i=>i.status==='done'&&i.blob);
