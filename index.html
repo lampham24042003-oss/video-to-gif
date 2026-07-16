@@ -100,6 +100,7 @@ h1{font-size:clamp(26px,5vw,44px);font-weight:700;background:linear-gradient(135
 
 footer{margin-top:32px;color:var(--mu);font-size:11px;text-align:center}
 #vcap{position:fixed;top:0;left:0;width:320px;height:180px;opacity:0.0001;pointer-events:none;z-index:-9999}
+#fi{display:none}
 canvas{display:none}
 </style>
 </head>
@@ -183,7 +184,7 @@ canvas{display:none}
 const MAX=10; let queue=[],uid=0,running=false;
 const dz=document.getElementById('dz');
 // Click anywhere on drop zone → open file picker
-dz.addEventListener('click',e=>{if(e.target.closest('label[for="fi"]'))return;document.getElementById('fi').click();});
+dz.addEventListener('click',()=>document.getElementById('fi').click());
 // dragenter required by Safari to allow drop
 dz.addEventListener('dragenter',e=>{e.preventDefault();e.stopPropagation();dz.classList.add('over')});
 dz.addEventListener('dragover',e=>{e.preventDefault();e.stopPropagation();dz.classList.add('over')});
